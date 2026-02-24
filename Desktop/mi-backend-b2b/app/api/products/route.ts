@@ -1,12 +1,27 @@
 import { NextResponse } from 'next/server';
 import { getProducts } from '@/services/shopify.service';
 
+interface ShopifyVariant {
+  id: string;
+  sku: string;
+  weight: number | null;
+  metafield?: { value: string } | null;
+}
+
+interface ShopifyProduct {
+  id: string;
+  title: string;
+  variants: {
+    nodes: ShopifyVariant[];
+  };
+}
+
 export async function GET() {
   try {
-    const products = await getProducts();
-    // Formatear respuesta simple para el frontend
-    const flatProducts = products.map(p => 
-      p.variants.nodes.map(v => ({
+    const products: ShopifyProduct[] = await getProducts();
+
+    const flatProducts = products.map((p: ShopifyProduct) =>
+      p.variants.nodes.map((v: ShopifyVariant) => ({
         product_id: p.id,
         title: p.title,
         sku: v.sku,
@@ -17,7 +32,8 @@ export async function GET() {
 
     return NextResponse.json(flatProducts);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Error obteniendo productos' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[API /products]', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
