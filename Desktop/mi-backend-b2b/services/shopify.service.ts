@@ -9,29 +9,33 @@ export async function getProducts() {
     );
   }
 
-  const url = `https://${SHOPIFY_DOMAIN}/admin/api/2026-01/graphql.json`;
-  console.log('[Shopify] Fetching from:', url);
-
   const query = `
-    {
-      products(first: 50) {
-        nodes {
-          id
-          title
-          variants(first: 10) {
-            nodes {
-              id
-              sku
-              weight
-              metafield(namespace: "wholesale", key: "price") {
-                value
+  {
+    products(first: 50) {
+      nodes {
+        id
+        title
+        variants(first: 10) {
+          nodes {
+            id
+            sku
+            inventoryItem {
+              measurement {
+                weight {
+                  value
+                  unit
+                }
               }
+            }
+            metafield(namespace: "wholesale", key: "price") {
+              value
             }
           }
         }
       }
     }
-  `;
+  }
+`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -79,14 +83,12 @@ export async function getProductBySku(sku: string): Promise<ShopifyVariantResult
     );
 
     if (variant) {
-      return {
-        product,
-        variant,
-        metafield: variant.metafield ?? null,  // route.ts accede a variant.metafield
-        weight: variant.weight ?? null,         // route.ts accede a variant.weight
-      };
-    }
-  }
-
+  return {
+    product,
+    variant,
+    metafield: variant.metafield ?? null,
+    weight: variant.inventoryItem?.measurement?.weight?.value ?? null,
+  };
+}
   return null;
 }
