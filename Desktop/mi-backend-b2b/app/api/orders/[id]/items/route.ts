@@ -13,20 +13,14 @@ export async function POST(
     return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
   }
 
-  // 1. Verificar estado del pedido (Solo draft)
+  // 1. Verificar estado del pedido (La seguridad de RLS ya filtra que solo veas los tuyos)
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .select('status, customer_id!inner(auth_user_id)')
+    .select('status')
     .eq('id', params.id)
     .single();
 
   if (orderError || !order) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
-  
-  // Verificación de ownership implícita en la query si RLS funciona, pero doble check:
-  const { data: { user } } = await supabase.auth.getUser();
-  if (order.customer_id.auth_user_id !== user?.id) {
-     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   if (order.status !== 'draft') {
     return NextResponse.json({ error: 'Solo se pueden añadir items a pedidos en borrador' }, { status: 400 });
@@ -45,7 +39,7 @@ export async function POST(
   const { error: insertError } = await supabase.from('order_items').insert({
     order_id: params.id,
     sku: sku,
-    nombre_producto: `Producto ${sku}`, // Se podría mejorar titulando desde Shopify
+    nombre_producto: `Producto ${sku}`,
     cantidad: cantidad,
     precio_unitario: precioUnitario,
     peso_unitario: pesoUnitario,
@@ -53,8 +47,7 @@ export async function POST(
 
   if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
 
-  // 4. Recalcular totales del pedido (SQL triggers sería lo ideal, pero lo haremos manual para simplicidad)
-  // Nota: En producción estricta usar Trigger de BD, aquí actualizamos tras insertar.
+  // 4. Recalcular totales del pedido
   const { data: totals } = await supabase
     .from('order_items')
     .select('cantidad, precio_unitario, peso_unitario')
