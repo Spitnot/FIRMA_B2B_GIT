@@ -64,3 +64,13 @@ export async function getProducts() {
 
   return data.data.products.nodes;
 }
+export async function getProductBySku(sku: string) {
+  const products = await getProducts();
+  for (const product of products) {
+    const variant = product.variants.nodes.find(
+      (v: { sku: string }) => v.sku === sku
+    );
+    if (variant) return { product, variant };
+  }
+  return null;
+}
