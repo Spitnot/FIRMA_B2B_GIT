@@ -3,7 +3,6 @@ const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
 const SHOPIFY_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 
 export async function getProducts() {
-  // Guard: detecta inmediatamente si las variables no llegaron
   if (!SHOPIFY_DOMAIN || !SHOPIFY_TOKEN) {
     throw new Error(
       `Missing env vars — DOMAIN: "${SHOPIFY_DOMAIN}", TOKEN: "${SHOPIFY_TOKEN ? '[SET]' : '[MISSING]'}"`
@@ -11,7 +10,7 @@ export async function getProducts() {
   }
 
   const url = `https://${SHOPIFY_DOMAIN}/admin/api/2026-01/graphql.json`;
-  console.log('[Shopify] Fetching from:', url); // Verás esto en los logs de Render
+  console.log('[Shopify] Fetching from:', url);
 
   const query = `
     {
@@ -43,7 +42,6 @@ export async function getProducts() {
     body: JSON.stringify({ query }),
   });
 
-  // LOG DETALLADO: status + body completo antes de lanzar error
   if (!response.ok) {
     const errorBody = await response.text();
     console.error('[Shopify] Error response:', {
@@ -56,7 +54,6 @@ export async function getProducts() {
 
   const data = await response.json();
 
-  // Shopify puede devolver 200 con errores GraphQL dentro del body
   if (data.errors) {
     console.error('[Shopify] GraphQL errors:', JSON.stringify(data.errors));
     throw new Error(`GraphQL error: ${JSON.stringify(data.errors)}`);
@@ -64,19 +61,32 @@ export async function getProducts() {
 
   return data.data.products.nodes;
 }
-export async function getProductBySku(sku: string) {
+
+// Tipo explícito para que TypeScript no se queje en route.ts
+export interface ShopifyVariantResult {
+  product: any;
+  variant: any;
+  metafield: { value: string } | null;
+  weight: number | null;
+}
+
+export async function getProductBySku(sku: string): Promise<ShopifyVariantResult | null> {
   const products = await getProducts();
+
   for (const product of products) {
     const variant = product.variants.nodes.find(
       (v: { sku: string }) => v.sku === sku
     );
+
     if (variant) {
       return {
         product,
         variant,
-        metafield: variant.metafield ?? null,
+        metafield: variant.metafield ?? null,  // route.ts accede a variant.metafield
+        weight: variant.weight ?? null,         // route.ts accede a variant.weight
       };
     }
   }
+
   return null;
 }
