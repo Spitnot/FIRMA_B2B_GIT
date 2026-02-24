@@ -4,7 +4,14 @@ import { getProducts } from '@/services/shopify.service';
 interface ShopifyVariant {
   id: string;
   sku: string;
-  weight: number | null;
+  inventoryItem?: {
+    measurement?: {
+      weight?: {
+        value: number;
+        unit: string;
+      };
+    };
+  };
   metafield?: { value: string } | null;
 }
 
@@ -25,7 +32,7 @@ export async function GET() {
         product_id: p.id,
         title: p.title,
         sku: v.sku,
-        weight: v.weight,
+        weight: v.inventoryItem?.measurement?.weight?.value ?? null,
         wholesale_price: v.metafield?.value ? parseFloat(v.metafield.value) : 0,
       }))
     ).flat();
