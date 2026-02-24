@@ -1,4 +1,3 @@
-// shopify.service.ts
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
 const SHOPIFY_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 
@@ -9,33 +8,36 @@ export async function getProducts() {
     );
   }
 
+  const url = `https://${SHOPIFY_DOMAIN}/admin/api/2026-01/graphql.json`;
+  console.log('[Shopify] Fetching from:', url);
+
   const query = `
-  {
-    products(first: 50) {
-      nodes {
-        id
-        title
-        variants(first: 10) {
-          nodes {
-            id
-            sku
-            inventoryItem {
-              measurement {
-                weight {
-                  value
-                  unit
+    {
+      products(first: 50) {
+        nodes {
+          id
+          title
+          variants(first: 10) {
+            nodes {
+              id
+              sku
+              inventoryItem {
+                measurement {
+                  weight {
+                    value
+                    unit
+                  }
                 }
               }
-            }
-            metafield(namespace: "wholesale", key: "price") {
-              value
+              metafield(namespace: "wholesale", key: "price") {
+                value
+              }
             }
           }
         }
       }
     }
-  }
-`;
+  `;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -66,7 +68,6 @@ export async function getProducts() {
   return data.data.products.nodes;
 }
 
-// Tipo explícito para que TypeScript no se queje en route.ts
 export interface ShopifyVariantResult {
   product: any;
   variant: any;
@@ -83,12 +84,14 @@ export async function getProductBySku(sku: string): Promise<ShopifyVariantResult
     );
 
     if (variant) {
-  return {
-    product,
-    variant,
-    metafield: variant.metafield ?? null,
-    weight: variant.inventoryItem?.measurement?.weight?.value ?? null,
-  };
-}
+      return {
+        product,
+        variant,
+        metafield: variant.metafield ?? null,
+        weight: variant.inventoryItem?.measurement?.weight?.value ?? null,
+      };
+    }
+  }
+
   return null;
 }
