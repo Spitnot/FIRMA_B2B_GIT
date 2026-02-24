@@ -70,7 +70,13 @@ export async function getProductBySku(sku: string) {
     const variant = product.variants.nodes.find(
       (v: { sku: string }) => v.sku === sku
     );
-    if (variant) return { product, variant };
+    if (variant) {
+      return {
+        product,
+        variant,
+        metafield: variant.metafield ?? null,
+      };
+    }
   }
   return null;
 }
