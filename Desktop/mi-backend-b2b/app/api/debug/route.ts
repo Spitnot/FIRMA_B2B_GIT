@@ -1,0 +1,1 @@
+export async function GET() { return Response.json({ domain: process.env.SHOPIFY_STORE_DOMAIN ?? 'MISSING', token: process.env.SHOPIFY_ACCESS_TOKEN ? `${process.env.SHOPIFY_ACCESS_TOKEN.slice(0, 8)}...` : 'MISSING', nodeEnv: process.env.NODE_ENV, }); }
