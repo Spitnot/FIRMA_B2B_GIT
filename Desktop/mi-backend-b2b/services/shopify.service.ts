@@ -1,20 +1,18 @@
+// shopify.service.ts
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
 const SHOPIFY_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 
-interface ShopifyVariant {
-  id: string;
-  sku: string | null;
-  weight: number;
-  metafield: { value: string } | null;
-}
+export async function getProducts() {
+  // Guard: detecta inmediatamente si las variables no llegaron
+  if (!SHOPIFY_DOMAIN || !SHOPIFY_TOKEN) {
+    throw new Error(
+      `Missing env vars — DOMAIN: "${SHOPIFY_DOMAIN}", TOKEN: "${SHOPIFY_TOKEN ? '[SET]' : '[MISSING]'}"`
+    );
+  }
 
-interface ShopifyProduct {
-  id: string;
-  title: string;
-  variants: { nodes: ShopifyVariant[] };
-}
+  const url = `https://${SHOPIFY_DOMAIN}/admin/api/2026-01/graphql.json`;
+  console.log('[Shopify] Fetching from:', url); // Verás esto en los logs de Render
 
-export async function getProducts(): Promise<ShopifyProduct[]> {
   const query = `
     {
       products(first: 50) {
@@ -36,7 +34,7 @@ export async function getProducts(): Promise<ShopifyProduct[]> {
     }
   `;
 
-  const response = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/2024-01/graphql.json`, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -45,17 +43,24 @@ export async function getProducts(): Promise<ShopifyProduct[]> {
     body: JSON.stringify({ query }),
   });
 
-  if (!response.ok) throw new Error('Error fetching from Shopify');
+  // LOG DETALLADO: status + body completo antes de lanzar error
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error('[Shopify] Error response:', {
+      status: response.status,
+      statusText: response.statusText,
+      body: errorBody,
+    });
+    throw new Error(`Shopify API error ${response.status}: ${errorBody}`);
+  }
 
   const data = await response.json();
-  return data.data.products.nodes;
-}
 
-export async function getProductBySku(sku: string): Promise<ShopifyVariant | null> {
-  const products = await getProducts();
-  for (const product of products) {
-    const variant = product.variants.nodes.find(v => v.sku === sku);
-    if (variant) return variant;
+  // Shopify puede devolver 200 con errores GraphQL dentro del body
+  if (data.errors) {
+    console.error('[Shopify] GraphQL errors:', JSON.stringify(data.errors));
+    throw new Error(`GraphQL error: ${JSON.stringify(data.errors)}`);
   }
-  return null;
+
+  return data.data.products.nodes;
 }
